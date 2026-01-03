@@ -519,6 +519,8 @@ button:active, .fab:active{
 <!--
 
 <script>
+const BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE";
+
 (function(){
   const AUTH_KEY="beat_profile";
   const saved = localStorage.getItem(AUTH_KEY);
@@ -911,17 +913,27 @@ document.getElementById("btnTgAuth").onclick = function(){
 let generatedCode=null;
 function startEmailVerify(){
   const email = regEmail.value.trim();
-  const pass  = regPass.value.trim();
-  if(!email||!pass){ alert("Введите email и пароль"); return; }
+  if(!email){ alert("Введите email"); return; }
 
-  // ▼▼▼ ТОЧКА ПОДКЛЮЧЕНИЯ К БЭКЕНДУ ОТПРАВКИ КОДА ▼▼▼
-  // fetch("/api/send_code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})})
-  //   .then(r=>r.json()).then(d=>{ generatedCode=d.code; codeBox.style.display="block"; });
-
-  // Demo (без сервера)
   generatedCode = String(Math.floor(100000+Math.random()*900000));
-  codeBox.style.display="block";
-  codeHint.textContent = "Демо‑код: "+generatedCode;
+
+  const userId = Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  if(!userId){
+    alert("Откройте приложение через кнопку в Telegram");
+    return;
+  }
+
+  fetch("https://api.telegram.org/bot"+BOT_TOKEN+"/sendMessage", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      chat_id: userId,
+      text: "Ваш код подтверждения: " + generatedCode
+    })
+  }).then(()=>{
+    codeBox.style.display="block";
+    codeHint.textContent = "Код отправлен в Telegram";
+  }).catch(()=>alert("Ошибка отправки кода"));
 }
 
 function finishEmailVerify(){
