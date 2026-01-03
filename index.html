@@ -512,8 +512,42 @@ button:active, .fab:active{
 }
 
 </style>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+
+<!--
+
+<script>
+(function(){
+  const AUTH_KEY="beat_profile";
+  const saved = localStorage.getItem(AUTH_KEY);
+  const app = document.querySelector(".screen");
+  if(!saved && app){ app.style.display="none"; }
+  if(saved){
+    const p = JSON.parse(saved||"{}");
+    applyProfileFromAuth?.(p);
+    document.getElementById("authOverlay")?.remove();
+  }
+})();
+</script>
+ ===== TELEGRAM / EMAIL AUTH (FIRST RUN) ===== -->
+<div id="authOverlay" style="position:fixed;inset:0;background:#0a0b10;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:99999;padding:18px">
+  <div style="max-width:420px;width:100%" class="card-panel">
+    <h2 style="margin-top:0">Вход / Регистрация</h2>
+    <button id="btnTgAuth" class="submit soft">Войти через Telegram</button>
+    <div style="opacity:.6;text-align:center;margin:10px 0">или</div>
+    <div class="form-group"><label>Email</label><input id="regEmail" class="input" type="email"></div>
+    <div class="form-group"><label>Пароль</label><input id="regPass" class="input" type="password"></div>
+    <button class="submit soft" onclick="startEmailVerify()">Создать аккаунт</button>
+    <div id="codeBox" style="display:none;margin-top:10px">
+      <div class="form-group"><label>Код из письма</label><input id="codeInput" class="input"></div>
+      <button class="submit soft" onclick="finishEmailVerify()">Подтвердить</button>
+      <div id="codeHint" style="opacity:.6;font-size:12px;margin-top:4px"></div>
+    </div>
+  </div>
+</div>
+
 <div class="screen">
 <header class="top-bar"><div class="brand">BЁAT</div><div class="balance">₽ <span id="balance">17</span><button onclick="openPage('topup')">＋</button></div></header>
 
@@ -836,6 +870,74 @@ if(typeof addBeatToCart === "function"){
 </script>
 
 <div class="snow" id="snow"></div>
+
+
+<script>
+/* ===== REAL TELEGRAM WEBAPP AUTH + PROFILE PERSISTENCE ===== */
+const AUTH_KEY = "beat_profile";
+const tg = window.Telegram?.WebApp;
+
+/* apply profile to existing UI */
+window.applyProfileFromAuth = function(p){
+  try{
+    if(p.username) { profile.username = p.username; }
+    if(p.bio) profile.bio = profile.bio || "";
+    if(document.getElementById("username")) username.value = profile.username;
+    if(document.getElementById("pubName")) pubName.textContent = profile.username;
+  }catch(e){}
+};
+
+/* Telegram login */
+document.getElementById("btnTgAuth").onclick = function(){
+  try{
+    if(!tg || !tg.initDataUnsafe || !tg.initDataUnsafe.user){
+      alert("Откройте бота внутри Telegram (WebApp)"); return;
+    }
+    const u = tg.initDataUnsafe.user;
+    const prof = {
+      id: u.id,
+      username: (u.first_name||"") + (u.last_name?(" "+u.last_name):""),
+      tg_user: u.username||"",
+      source:"telegram"
+    };
+    localStorage.setItem(AUTH_KEY, JSON.stringify(prof));
+    applyProfileFromAuth(prof);
+    document.getElementById("authOverlay")?.remove();
+    document.querySelector(".screen")?.style.removeProperty("display");
+  }catch(e){ console.error(e); alert("Ошибка Telegram авторизации"); }
+};
+
+/* ===== EMAIL REGISTRATION (CODE DEMO, BACKEND HOOK POINT) ===== */
+let generatedCode=null;
+function startEmailVerify(){
+  const email = regEmail.value.trim();
+  const pass  = regPass.value.trim();
+  if(!email||!pass){ alert("Введите email и пароль"); return; }
+
+  // ▼▼▼ ТОЧКА ПОДКЛЮЧЕНИЯ К БЭКЕНДУ ОТПРАВКИ КОДА ▼▼▼
+  // fetch("/api/send_code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})})
+  //   .then(r=>r.json()).then(d=>{ generatedCode=d.code; codeBox.style.display="block"; });
+
+  // Demo (без сервера)
+  generatedCode = String(Math.floor(100000+Math.random()*900000));
+  codeBox.style.display="block";
+  codeHint.textContent = "Демо‑код: "+generatedCode;
+}
+
+function finishEmailVerify(){
+  if(codeInput.value.trim() !== generatedCode){ alert("Неверный код"); return; }
+
+  const prof = {
+    id:"local_"+Date.now(),
+    username: regEmail.value.trim(),
+    source:"email"
+  };
+  localStorage.setItem(AUTH_KEY, JSON.stringify(prof));
+  applyProfileFromAuth(prof);
+  document.getElementById("authOverlay")?.remove();
+  document.querySelector(".screen")?.style.removeProperty("display");
+}
+</script>
 
 </body>
 </html>
